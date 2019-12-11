@@ -7,7 +7,7 @@ LARGE_FONT = ("Verdana", 12)
 print("works")
 bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 bindsocket.setblocking(1)
-bindsocket.bind(('', 8081))
+bindsocket.bind(('', 8082))
 bindsocket.listen(5)
 fromaddr = None
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,7 +50,6 @@ class StartPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         # self.bind("<<ShowFrame>>", self.on_show_frame)
-
         # self.waitForConnection()
         label = tk.Label(self, text="Start Page", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
@@ -65,7 +64,7 @@ class StartPage(tk.Frame):
                             command=lambda: self.send_to_chat(sendMessageText.get()))
         sendButton.pack()
 
-        connectButton = tk.Button(self, text="Connect", command=lambda: [self.receiving_thread(), self.connect()])
+        connectButton = tk.Button(self, text="Connect", command=lambda: [self.waiting_thread(), self.connect()])
 
         connectButton.pack()
 
@@ -85,20 +84,19 @@ class StartPage(tk.Frame):
 
     def connect(self):
         global s
-        s.connect(('', 8082))
+        s.connect(('', 8081))
 
     def recieve(self, newsocket):
 
-        print("recieving")
-        data = None
-        while data is None:
-            data = newsocket.recv(1024)
-        print("Server says: " + data.decode("ASCII"))
-        self.messageBox.insert('1.0', data.decode("ASCII"))
-        if data.decode('ASCII') != 'disconnect':
+        while True:
+            print("recieving")
             data = None
+            while data is None:
+                data = newsocket.recv(1024)
+            print("Server says: " + data.decode("ASCII"))
+            self.messageBox.insert('1.0', data.decode("ASCII"))
 
-    def receiving_thread(self):
+    def waiting_thread(self):
         t = threading.Thread(target=self.waitForConnection)
         t.start()
 
@@ -118,7 +116,7 @@ class StartPage(tk.Frame):
             except KeyboardInterrupt:
                 print('Program closing...')
                 break
-
+        print("closing")
         bindsocket.close()
 
 
