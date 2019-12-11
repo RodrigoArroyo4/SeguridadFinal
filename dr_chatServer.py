@@ -5,6 +5,11 @@ import tkinter as tk
 
 LARGE_FONT = ("Verdana", 12)
 print("works")
+bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+bindsocket.setblocking(1)
+bindsocket.bind(('', 8081))
+bindsocket.listen(5)
+fromaddr = None
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 class ChatApp(tk.Tk):
@@ -19,20 +24,13 @@ class ChatApp(tk.Tk):
         container.grid_columnconfigure(0, weight=1)
 
         self.frames = {}
-
-        # for F in (StartPage, PageOne):
-        #     frame = F(container, self)
-        #
-        #     self.frames[F] = frame
-        #
-        #     frame.grid(row=0, column=0, sticky="nsew")
-
         F = StartPage
         frame = F(container,self)
         self.frames[F] = frame
         frame.grid(row = 0, column = 0, sticky = "nsew")
 
         self.show_frame(StartPage)
+
 
     def show_frame(self, cont):
         frame = self.frames[cont]
@@ -44,14 +42,15 @@ class ChatApp(tk.Tk):
         counter = 1
         t = tk.Toplevel()
 
+
+
 class StartPage(tk.Frame):
 #esta pagina controla la conneccion
 #usuario inserta su nombre y presiona conectar para realizar la conexion con el servidor
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         # self.bind("<<ShowFrame>>", self.on_show_frame)
-        t = threading.Thread(target=self.waitForConnection())
-        t.start()
+
         # self.waitForConnection()
         label = tk.Label(self, text="Start Page", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
@@ -66,7 +65,7 @@ class StartPage(tk.Frame):
                             command=lambda: self.send_to_chat(sendMessageText.get()))
         sendButton.pack()
 
-        connectButton = tk.Button(self, text="Connect", command=lambda: [self.connect(), self.receiving_thread()])
+        connectButton = tk.Button(self, text="Connect", command=lambda: [self.receiving_thread(), self.connect()])
 
         connectButton.pack()
 
@@ -84,46 +83,44 @@ class StartPage(tk.Frame):
         print(message + " sent")
         s.sendall(message.encode('ASCII'))
 
-
     def connect(self):
         global s
-        s.connect(('', 8081))
+        s.connect(('', 8082))
 
-    def recieve(self):
-        global s
+    def recieve(self, newsocket):
+
         print("recieving")
         data = None
         while data is None:
-            data = s.recv(1024)
+            data = newsocket.recv(1024)
         print("Server says: " + data.decode("ASCII"))
         self.messageBox.insert('1.0', data.decode("ASCII"))
         if data.decode('ASCII') != 'disconnect':
             data = None
 
     def receiving_thread(self):
-        t = threading.Thread(target=self.recieve)
+        t = threading.Thread(target=self.waitForConnection)
         t.start()
 
     def waitForConnection(self):
+        global bindsocket
+
         print("waiting for connection")
         # if __name__ == '__main__':
-        bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        bindsocket.setblocking(0)
-        bindsocket.bind(('', 8082))
-        bindsocket.listen(5)
-        fromaddr = None
+
         while True:
             try:
                 (newsocket, fromaddr) = bindsocket.accept()
-                # t = threading.Thread(target=self.deal_with_client, args=(newsocket, fromaddr))
-                # t.start()
-                # t.join()
-                print('Done with client: ' + str(fromaddr))
+                print(newsocket)
+                t = threading.Thread(target=self.recieve, args=[newsocket])
+                t.start()
+                #t.join()
             except KeyboardInterrupt:
                 print('Program closing...')
                 break
 
         bindsocket.close()
+
 
     def deal_with_client(conn, addr):
         data = None
@@ -143,6 +140,8 @@ class StartPage(tk.Frame):
             text = input('Server: ')
             conn.sendall(text.encode('ASCII'))
         conn.close()
+
+
 
 
 app = ChatApp()
