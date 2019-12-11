@@ -47,10 +47,12 @@ class ChatApp(tk.Tk):
 class StartPage(tk.Frame):
 #esta pagina controla la conneccion
 #usuario inserta su nombre y presiona conectar para realizar la conexion con el servidor
-
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        self.bind("<<ShowFrame>>", self.on_show_frame)
+        # self.bind("<<ShowFrame>>", self.on_show_frame)
+        t = threading.Thread(target=self.waitForConnection())
+        t.start()
+        # self.waitForConnection()
         label = tk.Label(self, text="Start Page", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
 
@@ -69,12 +71,13 @@ class StartPage(tk.Frame):
         connectButton.pack()
 
 
-
         # self.MessageArea = tk.Text(self, height = 25, width = 25, padx = 5, pady = 5)
         # self.MessageArea.pack()
 
-    def on_show_frame(self, event):
-        print()
+    # def on_show_frame(self, event):
+    #     print("waiting for connection")
+    #     t = threading.Thread(target=self.waitForConnection())
+    #     t.start()
 
     def send_to_chat(self, message):
         global s
@@ -84,7 +87,7 @@ class StartPage(tk.Frame):
 
     def connect(self):
         global s
-        s.connect(('', 8082))
+        s.connect(('', 8081))
 
     def recieve(self):
         global s
@@ -101,46 +104,49 @@ class StartPage(tk.Frame):
         t = threading.Thread(target=self.recieve)
         t.start()
 
-def deal_with_client(conn, addr):
-    data = None
-    text = ''
-    print('Chatting with: ' + str(addr))
-    while text != 'disconnect':
-        while data is None:
-            data = conn.recv(1024)
+    def waitForConnection(self):
+        print("waiting for connection")
+        # if __name__ == '__main__':
+        bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        bindsocket.setblocking(0)
+        bindsocket.bind(('', 8082))
+        bindsocket.listen(5)
+        fromaddr = None
+        while True:
+            try:
+                (newsocket, fromaddr) = bindsocket.accept()
+                # t = threading.Thread(target=self.deal_with_client, args=(newsocket, fromaddr))
+                # t.start()
+                # t.join()
+                print('Done with client: ' + str(fromaddr))
+            except KeyboardInterrupt:
+                print('Program closing...')
+                break
 
-        print("Client says: " + data.decode('ASCII'))
+        bindsocket.close()
 
-        if data.decode('ASCII') != 'disconnect':
-            data = None
-        else:
-            break
+    def deal_with_client(conn, addr):
+        data = None
+        text = ''
+        print('Chatting with: ' + str(addr))
+        while text != 'disconnect':
+            while data is None:
+                data = conn.recv(1024)
 
-        text = input('Server: ')
-        conn.sendall(text.encode('ASCII'))
-    conn.close()
+            print("Client says: " + data.decode('ASCII'))
+
+            if data.decode('ASCII') != 'disconnect':
+                data = None
+            else:
+                break
+
+            text = input('Server: ')
+            conn.sendall(text.encode('ASCII'))
+        conn.close()
 
 
-if __name__ == '__main__':
-    bindsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    bindsocket.bind(('', 8081))
-    bindsocket.listen(5)
-    fromaddr = None
-    while True:
-        try:
-            newsocket, fromaddr = bindsocket.accept()
-            t = threading.Thread(target=deal_with_client, args=(newsocket, fromaddr))
-            t.start()
-            t.join()
-            print('Done with client: ' + str(fromaddr))
-        except KeyboardInterrupt:
-            print('Program closing...')
-            break
-
-    bindsocket.close()
-
-    app = ChatApp()
-    app.mainloop()
+app = ChatApp()
+app.mainloop()
 
 
 
