@@ -1,7 +1,8 @@
 import socket
 import threading
-import random
+from random import randint
 import tkinter as tk
+from des import DesKey
 
 LARGE_FONT = ("Verdana", 12)
 print("works")
@@ -11,14 +12,15 @@ bindsocket.bind(('', 8082))
 bindsocket.listen(5)
 fromaddr = None
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-q = 23
-alpha = 5
+q = 1087
+alpha = 59
 key_exchange = None
-priv_key = 3  # random.randint(1, q)
+priv_key = randint(1, q)
 #  AXA mod q
 pub_key = (alpha ** priv_key) % q
 dh_key = 0
 print("pub_key", pub_key)
+shared_key = None
 
 
 
@@ -81,9 +83,11 @@ class StartPage(tk.Frame):
 
 
     def send_to_chat(self, message):
-        global s
+        global s, shared_key
         print(message + " sent")
-        s.sendall(message.encode('ASCII'))
+        to_send = message.encode('utf-8')
+        to_send = shared_key.encrypt(to_send, padding=True)
+        s.sendall(to_send)
 
     def connect(self):
         global s, key_exchange, pub_key, dh_key
@@ -99,15 +103,17 @@ class StartPage(tk.Frame):
             data = None
             while data is None:
                 data = newsocket.recv(1024)
-            print("Server says: " + data.decode("ASCII"))
-            self.messageBox.insert('1.0', data.decode("ASCII"))
+            # decrypt
+            data = shared_key.decrypt(data, padding=True)
+            print("Server says: " + data.decode("utf-8"))
+            self.messageBox.insert('1.0', data.decode("utf-8"))
 
     def waiting_thread(self):
         t = threading.Thread(target=self.waitForConnection)
         t.start()
 
     def waitForConnection(self):
-        global bindsocket, s, key_exchange, pub_key, dh_key
+        global bindsocket, s, key_exchange, pub_key, dh_key, shared_key
 
         print("waiting for connection")
         # if __name__ == '__main__':
@@ -123,6 +129,9 @@ class StartPage(tk.Frame):
                         strings = str(key_exchange, 'utf8')
                         num = int(strings)
                         dh_key = (num ** priv_key) % q
+                        str_temp = "00000" + str(dh_key)
+                        print(str_temp)
+                        shared_key = DesKey(str_temp.encode('utf-8'))
                         break
                     break
                 print("DH_ Exchange", num)
