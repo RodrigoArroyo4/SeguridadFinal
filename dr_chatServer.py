@@ -1,6 +1,6 @@
 import socket
 import threading
-
+import random
 import tkinter as tk
 
 LARGE_FONT = ("Verdana", 12)
@@ -11,10 +11,21 @@ bindsocket.bind(('', 8082))
 bindsocket.listen(5)
 fromaddr = None
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+q = 23
+alpha = 5
+key_exchange = None
+priv_key = 3  # random.randint(1, q)
+#  AXA mod q
+pub_key = (alpha ** priv_key) % q
+dh_key = 0
+print("pub_key", pub_key)
+
+
 
 class ChatApp(tk.Tk):
 
     def __init__(self, *args, **kwargs):
+        global cached_primes
         tk.Tk.__init__(self, *args, **kwargs)
         container = tk.Frame(self)
 
@@ -45,8 +56,8 @@ class ChatApp(tk.Tk):
 
 
 class StartPage(tk.Frame):
-#esta pagina controla la conneccion
-#usuario inserta su nombre y presiona conectar para realizar la conexion con el servidor
+# esta pagina controla la conneccion
+# usuario inserta su nombre y presiona conectar para realizar la conexion con el servidor
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         # self.bind("<<ShowFrame>>", self.on_show_frame)
@@ -69,25 +80,20 @@ class StartPage(tk.Frame):
         connectButton.pack()
 
 
-        # self.MessageArea = tk.Text(self, height = 25, width = 25, padx = 5, pady = 5)
-        # self.MessageArea.pack()
-
-    # def on_show_frame(self, event):
-    #     print("waiting for connection")
-    #     t = threading.Thread(target=self.waitForConnection())
-    #     t.start()
-
     def send_to_chat(self, message):
         global s
         print(message + " sent")
         s.sendall(message.encode('ASCII'))
 
     def connect(self):
-        global s
+        global s, key_exchange, pub_key, dh_key
         s.connect(('', 8081))
+        s.sendall(bytes(str(pub_key), 'utf8'))
+        print("sent Pub Key", pub_key)
+
 
     def recieve(self, newsocket):
-
+        print("DH_key:", dh_key)
         while True:
             print("recieving")
             data = None
@@ -101,7 +107,7 @@ class StartPage(tk.Frame):
         t.start()
 
     def waitForConnection(self):
-        global bindsocket
+        global bindsocket, s, key_exchange, pub_key, dh_key
 
         print("waiting for connection")
         # if __name__ == '__main__':
@@ -109,6 +115,18 @@ class StartPage(tk.Frame):
         while True:
             try:
                 (newsocket, fromaddr) = bindsocket.accept()
+                print("Connected")
+                while True:
+                    key_exchange = None
+                    while key_exchange is None:
+                        key_exchange = newsocket.recv(1024)
+                        strings = str(key_exchange, 'utf8')
+                        num = int(strings)
+                        dh_key = (num ** priv_key) % q
+                        break
+                    break
+                print("DH_ Exchange", num)
+
                 print(newsocket)
                 t = threading.Thread(target=self.recieve, args=[newsocket])
                 t.start()
